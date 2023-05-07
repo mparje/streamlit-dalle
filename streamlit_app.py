@@ -3,6 +3,7 @@ import requests
 from typing import List
 import streamlit as st
 import openai
+import os
 from PIL import Image
 
 size = 1024
@@ -72,7 +73,7 @@ def generate_variations(image: Image.Image, num_images: int) -> List[Image.Image
 
 
 def main():
-    openai.api_key = st.secrets["openai_api_key"]
+    openai.api_key = os.getenv["openai_api_key"]
     st.set_page_config(page_title="Image Generation", page_icon="🎨", layout="wide")
     hide_streamlit_style = """
                 <style>
