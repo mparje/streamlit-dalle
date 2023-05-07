@@ -11,10 +11,10 @@ size = 1024
 
 def generate_story(prompt: str) -> str:
     response = openai.Completion.create(
-        engine="davinci-codex",
+        engine="text-davinci-003",
         prompt=f"Create a short children's story based on the prompt: {prompt}",
         n=1,
-        max_tokens=300,
+        max_tokens=500,
         stop=None,
         temperature=0.7,
     )
