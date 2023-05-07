@@ -1,45 +1,37 @@
 import io
 import requests
-from typing import List
-import streamlit as st
-import openai
 import os
+import openai
+from typing import List
 from PIL import Image
+import streamlit as st
 
 size = 1024
 
 
+def generate_story(prompt: str) -> str:
+    response = openai.Completion.create(
+        engine="davinci-codex",
+        prompt=f"Create a short children's story based on the prompt: {prompt}",
+        n=1,
+        max_tokens=300,
+        stop=None,
+        temperature=0.7,
+    )
+
+    return response.choices[0].text.strip()
+
+
 def download_images(image_urls: List[str]) -> List[Image.Image]:
-    """
-    Download and open a list of image files from a given list of URLs and return them as PIL Image objects.
-
-    Args:
-        image_urls (List[str]): A list of URLs from which to download images.
-
-    Returns:
-        List[PIL.Image.Image]: A list of PIL Image objects containing the downloaded images.
-    """
     images = []
     for url in image_urls:
-        # Get the image from the URL
         response = requests.get(url)
-        # Open the image using PIL
         img = Image.open(io.BytesIO(response.content))
         images.append(img)
     return images
 
-
+ 
 def generate_images(text: str, num_images: int) -> List[Image.Image]:
-    """
-    Generate a specified number of images from OpenAI's DALL-E 2 API using a text prompt.
-
-    Args:
-        text (str): A string describing the desired images.
-        num_images (int): The number of images to generate.
-
-    Returns:
-        List[Pil.Image.Image]: A list of PIL Image objects containing the generated images.
-    """
     response = openai.Image.create(
         prompt=text,
         n=num_images,
@@ -50,17 +42,6 @@ def generate_images(text: str, num_images: int) -> List[Image.Image]:
 
 
 def generate_variations(image: Image.Image, num_images: int) -> List[Image.Image]:
-    """
-    Generate a specified number of variations from OpenAI's DALL-E 2 API using an input image.
-
-    Args:
-        image (PIL.Image.Image): A PIL Image object to generate variations of.
-        num_images (int): The number of variations to generate.
-
-    Returns:
-        List[Pil.Image.Image]: A list of PIL Image objects containing the generated images.
-    """
-    # Write image to in-memory buffer as PNG
     buffer = io.BytesIO()
     image.save(buffer, format='PNG')
     response = openai.Image.create_variation(
@@ -73,8 +54,8 @@ def generate_variations(image: Image.Image, num_images: int) -> List[Image.Image
 
 
 def main():
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    st.set_page_config(page_title="Image Generation", page_icon="🎨", layout="wide")
+    openai.api_key = os.getenv("openai_api_key")
+    st.set_page_config(page_title="Story and Image Generation", page_icon="🎨", layout="wide")
     hide_streamlit_style = """
                 <style>
                 #MainMenu {visibility: hidden;}
@@ -82,9 +63,10 @@ def main():
                 </style>
                 """
     st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-    st.title("DALL-E 2 Image Generation")
-    st.subheader("Enter a text prompt")
-    text = st.text_area("Text Prompt")
+    st.title("Children's Story and Image Generation")
+    st.subheader("Enter a prompt for your children's story")
+    text = st.text_area("Story Prompt")
+
     st.subheader("or upload an image to create variations")
     file_upload = st.file_uploader(
         "Image upload",
@@ -94,11 +76,17 @@ def main():
     st.subheader("Select the number of images to generate")
     num_images = st.slider("Number of Images", min_value=1, max_value=6, value=4, step=1)
 
-    # Store the images list in the session_state of streamlit
     if "images" not in st.session_state:
         st.session_state.images = []
 
+    if "generated_story" in st.session_state:
+        st.markdown(f"## Generated story\n\n{st.session_state.generated_story}\n")
+
     if st.button("Run!"):
+        if text:
+            with st.spinner("Generating story using GPT-3 Davinci"):
+                st.session_state.generated_story = generate_story(text)
+
         if file_upload is not None:
             with st.spinner("Using openAI API with image"):
                 image = Image.open(file_upload)
@@ -108,18 +96,18 @@ def main():
                 top = int((height - square_size) / 2)
                 right = left + square_size
                 bottom = top + square_size
-                # Crop the center of the image and resize if needed
                 image = image.crop((left, top, right, bottom))
                 if square_size > 1024:
                     image = image.resize((1024, 1024))
-                # Generate variations for the uploaded image
                 st.session_state.images = generate_variations(image, num_images)
                 st.experimental_rerun()
         else:
-            with st.spinner("Using openAI API with text prompt"):
-                # Generate the images
-                st.session_state.images = generate_images(text, num_images)
-                st.experimental_rerun()
+            story_text = st.session_state.get("generated_story")
+            if story_text:
+                with st.spinner("Using openAI API with text prompt"):
+                    st.session_state.images = generate_images(story_text, num_images)
+                    st.experimental_rerun()
+
     num_columns = len(st.session_state.images)
     if num_columns > 0:
         columns = st.columns(num_columns)
@@ -130,15 +118,12 @@ def main():
                 st.image(image, caption=f"Image {i + 1}")
                 if st.button(f"Create variations for Image {i + 1}", use_container_width=True):
                     with st.spinner("Using openAI API"):
-                        # Generate variations for the current image
                         st.session_state.images = generate_variations(image, num_images)
                         st.experimental_rerun()
-                # Convert the PIL Image object to PNG
                 img_io = io.BytesIO()
                 image.save(img_io, 'PNG')
                 img_io.seek(0)
 
-                # Add a download button to download the PNG file
                 st.download_button(
                     label=f"Download Image {i + 1}",
                     data=img_io,
