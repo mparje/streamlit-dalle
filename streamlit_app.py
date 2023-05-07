@@ -107,8 +107,10 @@ def main():
                 top = int((height - square_size) / 2)
                 right = left + square_size
                 bottom = top + square_size
-                # Crop the center of the image
+                # Crop the center of the image and resize if needed
                 image = image.crop((left, top, right, bottom))
+                if square_size > 1024:
+                    image = image.resize((1024, 1024))
                 # Generate variations for the uploaded image
                 st.session_state.images = generate_variations(image, num_images)
                 st.experimental_rerun()
