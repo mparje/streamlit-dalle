@@ -73,7 +73,7 @@ def generate_variations(image: Image.Image, num_images: int) -> List[Image.Image
 
 def main():
     openai.api_key = st.secrets["openai_api_key"]
-    st.set_page_config(page_title="Image Generation", page_icon="🎨")
+    st.set_page_config(page_title="Image Generation", page_icon="🎨", layout="wide")
     hide_streamlit_style = """
                 <style>
                 #MainMenu {visibility: hidden;}
@@ -82,8 +82,15 @@ def main():
                 """
     st.markdown(hide_streamlit_style, unsafe_allow_html=True)
     st.title("DALL-E 2 Image Generation")
-    st.subheader("Enter a text prompt and select the number of images to generate:")
-    text = st.text_input("Text Prompt")
+    st.subheader("Enter a text prompt")
+    text = st.text_area("Text Prompt")
+    st.subheader("or upload an image to create variations")
+    file_upload = st.file_uploader(
+        "Image upload",
+        type=["png", "jpg", "jpeg", "bmp"],
+        key="file_upload"
+    )
+    st.subheader("Select the number of images to generate")
     num_images = st.slider("Number of Images", min_value=1, max_value=6, value=4, step=1)
 
     # Store the images list in the session_state of streamlit
@@ -91,10 +98,25 @@ def main():
         st.session_state.images = []
 
     if st.button("Run!"):
-        with st.spinner("Using openAI API"):
-            # Generate the images
-            st.session_state.images = generate_images(text, num_images)
-            st.experimental_rerun()
+        if file_upload is not None:
+            with st.spinner("Using openAI API with image"):
+                image = Image.open(file_upload)
+                width, height = image.size
+                square_size = min(width, height)
+                left = int((width - square_size) / 2)
+                top = int((height - square_size) / 2)
+                right = left + square_size
+                bottom = top + square_size
+                # Crop the center of the image
+                image = image.crop((left, top, right, bottom))
+                # Generate variations for the uploaded image
+                st.session_state.images = generate_variations(image, num_images)
+                st.experimental_rerun()
+        else:
+            with st.spinner("Using openAI API with text prompt"):
+                # Generate the images
+                st.session_state.images = generate_images(text, num_images)
+                st.experimental_rerun()
     num_columns = len(st.session_state.images)
     if num_columns > 0:
         columns = st.columns(num_columns)
@@ -115,7 +137,7 @@ def main():
 
                 # Add a download button to download the PNG file
                 st.download_button(
-                    label="Download Image",
+                    label=f"Download Image {i + 1}",
                     data=img_io,
                     file_name="generation.png",
                     mime="image/png",
