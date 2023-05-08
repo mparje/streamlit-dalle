@@ -7,11 +7,15 @@ from PIL import Image
 import streamlit as st
 
 size = 1024
+api_key = os.getenv("openai_api_key")
 
 if not api_key:
     st.warning("Please enter a valid API key to continue.")
 else:
     openai.api_key = api_key
+
+# The remaining code stays the same
+
     
 def generate_story(prompt: str) -> str:
     response = openai.Completion.create(
