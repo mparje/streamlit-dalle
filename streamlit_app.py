@@ -8,7 +8,11 @@ import streamlit as st
 
 size = 1024
 
-
+if not api_key:
+    st.warning("Please enter a valid API key to continue.")
+else:
+    openai.api_key = api_key
+    
 def generate_story(prompt: str) -> str:
     response = openai.Completion.create(
         engine="text-davinci-003",
@@ -54,7 +58,7 @@ def generate_variations(image: Image.Image, num_images: int) -> List[Image.Image
 
 
 def main():
-    openai.api_key = os.getenv("openai_api_key")
+    
     st.set_page_config(page_title="Story and Image Generation", page_icon="🎨", layout="wide")
     hide_streamlit_style = """
                 <style>
